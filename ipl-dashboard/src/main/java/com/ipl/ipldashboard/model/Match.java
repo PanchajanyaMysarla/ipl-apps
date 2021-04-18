@@ -1,13 +1,21 @@
 package com.ipl.ipldashboard.model;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import javax.persistence.Entity;
+import javax.persistence.Id;
 import java.time.LocalDate;
 
 @Getter
 @Setter
+@Entity
+@AllArgsConstructor
+@NoArgsConstructor
 public class Match {
+    @Id
     private long id;
     private String city;
     private LocalDate date;
@@ -19,7 +27,7 @@ public class Match {
     private String tossDecision;
     private String matchWinner;
     private String result;
-    private String result_margin;
+    private String resultMargin;
     private String umpire1;
     private String umpire2;
 }

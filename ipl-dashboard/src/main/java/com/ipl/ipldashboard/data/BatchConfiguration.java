@@ -24,6 +24,10 @@ import javax.sql.DataSource;
 @EnableBatchProcessing
 public class BatchConfiguration {
 
+    private final String[] FIELD_NAMES = new String[]{
+            "id", "city", "date", "player_of_match", "venue", "neutral_venue", "team1", "team2", "toss_winner", "toss_decision", "winner", "result", "result_margin", "eliminator", "method", "umpire1", "umpire2"
+    };
+
     @Autowired
     public JobBuilderFactory jobBuilderFactory;
 
@@ -32,22 +36,21 @@ public class BatchConfiguration {
 
 
     @Bean
-    public FlatFileItemReader<Match> reader(){
-
-        return new FlatFileItemReaderBuilder<Match>()
+    public FlatFileItemReader<MatchInput> reader() {
+        return new FlatFileItemReaderBuilder<MatchInput>()
                 .name("matchItemReader")
                 .resource(new ClassPathResource("match-data.csv"))
                 .linesToSkip(1)
                 .delimited()
-                .names("id","city","date","player_of_match","venue","neutral_venue","team1","team2","toss_winner","toss_decision","winner","result","result_margin","eliminator","method","umpire1","umpire2")
-                .fieldSetMapper(new BeanWrapperFieldSetMapper<Match>(){{
-                    setTargetType(Match.class);
+                .names(FIELD_NAMES)
+                .fieldSetMapper(new BeanWrapperFieldSetMapper<MatchInput>() {{
+                    setTargetType(MatchInput.class);
                 }})
                 .build();
     }
 
     @Bean
-    public MatchDataProcessor processor(){
+    public MatchDataProcessor processor() {
         return new MatchDataProcessor();
     }
 
@@ -56,18 +59,19 @@ public class BatchConfiguration {
     public JdbcBatchItemWriter<Match> writer(DataSource dataSource) {
         return new JdbcBatchItemWriterBuilder<Match>()
                 .itemSqlParameterSourceProvider(new BeanPropertyItemSqlParameterSourceProvider<>())
-                .sql("INSERT INTO people (first_name, last_name) VALUES (:firstName, :lastName)")
+                .sql("INSERT INTO match (id, city, date, player_of_match, venue, team1, team2, toss_winner, toss_decision, match_winner, result, result_margin, umpire1, umpire2) " +
+                        " VALUES (:id, :city, :date, :playerOfMatch, :venue, :team1, :team2, :tossWinner, :tossDecision, :matchWinner, :result, :resultMargin, :umpire1, :umpire2)")
                 .dataSource(dataSource)
                 .build();
     }
 
 
     @Bean
-    public Job importMatchData(Step step1){
-
+    public Job importMatchData(JobCompletionNotificationListener listener, Step step1) {
         return jobBuilderFactory
                 .get("importMatchData")
                 .incrementer(new RunIdIncrementer())
+                .listener(listener)
                 .flow(step1)
                 .end()
                 .build();
@@ -75,13 +79,13 @@ public class BatchConfiguration {
     }
 
     @Bean
-    public Step step1(){
+    public Step step1(JdbcBatchItemWriter<Match> writer) {
         return stepBuilderFactory
                 .get("step1")
-                .chunk(10)
+                .<MatchInput, Match>chunk(10)
                 .reader(reader())
                 .processor(processor())
-                .writer(null)
+                .writer(writer)
                 .build();
     }
 
